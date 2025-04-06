@@ -16,7 +16,7 @@ public class ConsumerGUI extends Application {
     public void start(Stage primaryStage) {
         VBox root = new VBox(10);
 
-        // For testing without producer
+        // For testing without producer (until line 28, the if statement != null)
         File testVideosDir = new File("Videos/TestPSET3");  // Change to your test folder
         File[] videoFiles = testVideosDir.listFiles((dir, name) -> name.endsWith(".mp4"));  // Only mp4 files
         if (videoFiles == null || videoFiles.length == 0) {
@@ -67,7 +67,7 @@ public class ConsumerGUI extends Application {
         }
 
         Scene scene = new Scene(root, 1000, 800);
-        primaryStage.setTitle("Consumer Video Gallery");
+        primaryStage.setTitle("Consumer - Video Library");
         primaryStage.setScene(scene);
         primaryStage.show();
     }

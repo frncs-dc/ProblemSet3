@@ -19,17 +19,6 @@ public class Consumer {
             saveDir.mkdir();
         }
 
-    private volatile boolean connected = false;
-
-    private final File videoFolder = new File("Consumer/Videos");
-
-    // Call this from your app logic to start everything
-    public void startServerForTesting() {
-        // Start broadcasting in a separate thread
-        new Thread(this::broadcastUntilConnected).start();
-
-        // Start TCP server and wait for producer
-        waitForProducerConnection();
         // Initialize a pool of threads to process video files
         videoProcessingPool = Executors.newFixedThreadPool(2); // Adjust the number of threads as necessary
     }
@@ -71,12 +60,6 @@ public class Consumer {
         }
     }
 
-    public File[] getVideoFiles() {
-        if (!videoFolder.exists()) {
-            videoFolder.mkdirs(); // create folder if it doesn't exist
-        }
-        return videoFolder.listFiles((dir, name) -> name.endsWith(".mp4"));
-    }
     private void handleProducer(Socket socket) {
         try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
             while (true) {

@@ -8,9 +8,7 @@ public class Main {
         // The string to compare with
         String consumerSTRING = "CONSUMER";
         String producerSTRING = "PRODUCER";
-
-
-
+        
         String userInput = "";
 
         // Keep asking for input until it's correct
@@ -27,7 +25,7 @@ public class Main {
                 if (userInput.toUpperCase().equals(consumerSTRING)) {
                     Consumer consumer = new Consumer();
                     //consumer.startServerForTesting();
-                    new Thread(() -> consumer.startServerForTesting()).start();
+                    new Thread(() -> consumer.start()).start();
                     ConsumerGUI.launch(ConsumerGUI.class);
                     break;  // Exit the loop when the input is correct
                 } else if (userInput.toUpperCase().equals(producerSTRING)) {
