@@ -10,7 +10,7 @@ import javafx.scene.media.MediaView;
 import javafx.util.Duration;
 
 public class ConsumerGUI extends Application {
-    private Consumer consumer = new Consumer();
+    private Consumer consumer = new Consumer(2, 3);
 
     @Override
     public void start(Stage primaryStage) {

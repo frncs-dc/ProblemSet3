@@ -1,40 +1,53 @@
-// Consumer.java
 import java.io.*;
 import java.net.*;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 
 public class Consumer {
     private static final String MULTICAST_GROUP = "230.0.0.0";
     private static final int DISCOVERY_PORT = 4446;
     private static final int TCP_PORT = 5000;
-    private static final String CONSUMER_DIRECTORY = "consumer_directory"; // Directory to save received videos
-    private ExecutorService connectionPool = Executors.newCachedThreadPool();
-    private BlockingQueue<VideoFile> videoQueue = new LinkedBlockingQueue<>();
-    private ExecutorService videoProcessingPool;
-    public Consumer() {
+    private static final String CONSUMER_DIRECTORY = "consumer_directory";
+
+    private final ExecutorService connectionPool = Executors.newCachedThreadPool();
+    private final BlockingQueue<VideoFile> videoQueue;
+    private final ExecutorService videoProcessingPool;
+    private List<ConsumerThread> consumerThreads;
+
+    public Consumer(int numConsumerThreads, int maxQueueLength) {
         File saveDir = new File(CONSUMER_DIRECTORY);
         if (!saveDir.exists()) {
             saveDir.mkdir();
         }
 
-        // Initialize a pool of threads to process video files
-        videoProcessingPool = Executors.newFixedThreadPool(2); // Adjust the number of threads as necessary
+        // Leaky bucket: if queue is full, videos will be dropped
+        videoQueue = new LinkedBlockingQueue<>(maxQueueLength);
+        videoProcessingPool = Executors.newFixedThreadPool(numConsumerThreads);
     }
 
     public void start() {
         new Thread(this::broadcastContinuously).start();
         new Thread(this::startServer).start();
-        new Thread(this::processVideoQueue).start();
+
+        // Create consumer threads and keep references for logging
+        consumerThreads = new ArrayList<>();
+        for (int i = 0; i < ((ThreadPoolExecutor) videoProcessingPool).getCorePoolSize(); i++) {
+            ConsumerThread thread = new ConsumerThread(i, videoQueue, CONSUMER_DIRECTORY);
+            consumerThreads.add(thread);
+            videoProcessingPool.submit(thread);
+        }
+
+        startQueueLogger();
     }
+
 
     private void broadcastContinuously() {
         try {
             InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
             try (MulticastSocket socket = new MulticastSocket()) {
                 socket.setTimeToLive(1);
-
                 while (true) {
                     String message = "Consumer is listening on port " + TCP_PORT;
                     DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), group, DISCOVERY_PORT);
@@ -68,48 +81,50 @@ public class Consumer {
                 byte[] data = new byte[length];
                 in.readFully(data);
 
-                videoQueue.offer(new VideoFile(fileName, data));
-                System.out.println("Queued file: " + fileName);
+                VideoFile videoFile = new VideoFile(fileName, data);
+                boolean offered = videoQueue.offer(videoFile);
+
+                if (offered) {
+                    System.out.println("Queued file: " + fileName);
+                } else {
+                    System.out.println("Dropped file (queue full): " + fileName);
+                }
             }
         } catch (IOException e) {
             System.out.println("Producer disconnected.");
         }
     }
 
+    private void startQueueLogger() {
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(5000); // every 5 seconds
+                    System.out.println("\n--- [Queue Status] ---");
+                    System.out.println("Current files in queue: " + videoQueue.size());
 
-    private void processVideoQueue() {
-        while (true) {
-            try {
-                VideoFile video = videoQueue.take();
-                System.out.println("Processing video: " + video.fileName);
-                saveFile(video);
-                System.out.println("Finished processing: " + video.fileName);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
+                    for (ConsumerThread thread : consumerThreads) {
+                        System.out.println("Thread-" + thread.getId() + " is processing: " + thread.getCurrentFileName());
+                    }
+
+                    System.out.println("----------------------\n");
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
-        }
+        }).start();
     }
 
-    // Inner class to hold video file info
-    private static class VideoFile {
-        String fileName;
-        byte[] content;
 
-        VideoFile(String fileName, byte[] content) {
+    // Inner class for video data
+    public static class VideoFile {
+        public final String fileName;
+        public final byte[] content;
+
+        public VideoFile(String fileName, byte[] content) {
             this.fileName = fileName;
             this.content = content;
-        }
-    }
-
-    private void saveFile(VideoFile videoFile) {
-        Path filePath = Paths.get(CONSUMER_DIRECTORY, videoFile.fileName);
-
-        try (FileOutputStream fos = new FileOutputStream(String.valueOf(filePath))) {
-            fos.write(videoFile.content);  // Write content to file
-            System.out.println("Saved video file to consumer directory: " + videoFile.fileName);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 

@@ -1,30 +1,34 @@
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Scanner;
-import java.util.UUID;
+import java.nio.file.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Stream;
 
 public class Producer {
-
     private static final String MULTICAST_GROUP = "230.0.0.0";
     private static final int DISCOVERY_PORT = 4446;
+    private static final String PRODUCER_DIRECTORY = "producer_directory";
 
     private String consumerIp;
     private int consumerPort;
-    private int numProducers;
+    private final BlockingQueue<Path> videoQueue = new LinkedBlockingQueue<>();
 
     public void startClientForTesting(int numberOfThreads) {
         discoverConsumer();
 
         if (consumerIp != null) {
+            System.out.println("Consumer found at: " + consumerIp + ":" + consumerPort);
+
+            try {
+                preloadFiles(Paths.get(PRODUCER_DIRECTORY), videoQueue);
+            } catch (IOException e) {
+                System.err.println("Error preloading files: " + e.getMessage());
+                return;
+            }
+
             for (int i = 0; i < numberOfThreads; i++) {
-                ProducerThread producerThread = new ProducerThread(consumerIp, consumerPort, i);
-                producerThread.start();
+                new ProducerThread(consumerIp, consumerPort, i, videoQueue).start();
             }
         } else {
             System.err.println("Consumer not discovered.");
@@ -47,13 +51,6 @@ public class Producer {
             System.out.println("Received multicast: " + message);
 
             consumerIp = packet.getAddress().getHostAddress();
-
-            if (packet.getAddress() instanceof Inet6Address && consumerIp.contains("ffff")) {
-                byte[] ipv4Bytes = ((Inet6Address) packet.getAddress()).getAddress();
-                consumerIp = String.format("%d.%d.%d.%d",
-                        ipv4Bytes[12] & 0xFF, ipv4Bytes[13] & 0xFF, ipv4Bytes[14] & 0xFF, ipv4Bytes[15] & 0xFF);
-            }
-
             String[] parts = message.split(" ");
             consumerPort = Integer.parseInt(parts[parts.length - 1]);
 
@@ -65,5 +62,16 @@ public class Producer {
             e.printStackTrace();
         }
     }
-}
 
+    private void preloadFiles(Path dir, BlockingQueue<Path> queue) throws IOException {
+        try (Stream<Path> files = Files.list(dir)) {
+            files.filter(path -> Files.isRegularFile(path) && isVideoFile(path))
+                    .forEach(queue::offer);
+        }
+    }
+
+    private boolean isVideoFile(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        return name.endsWith(".mp4") || name.endsWith(".avi") || name.endsWith(".mov");
+    }
+}
