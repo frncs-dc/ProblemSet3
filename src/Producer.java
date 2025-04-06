@@ -47,6 +47,13 @@ public class Producer {
             System.out.println("Received multicast: " + message);
 
             consumerIp = packet.getAddress().getHostAddress();
+
+            if (packet.getAddress() instanceof Inet6Address && consumerIp.contains("ffff")) {
+                byte[] ipv4Bytes = ((Inet6Address) packet.getAddress()).getAddress();
+                consumerIp = String.format("%d.%d.%d.%d",
+                        ipv4Bytes[12] & 0xFF, ipv4Bytes[13] & 0xFF, ipv4Bytes[14] & 0xFF, ipv4Bytes[15] & 0xFF);
+            }
+
             String[] parts = message.split(" ");
             consumerPort = Integer.parseInt(parts[parts.length - 1]);
 
