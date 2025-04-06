@@ -3,6 +3,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Scanner;
+import java.util.UUID;
 
 public class Producer {
 
@@ -11,11 +16,16 @@ public class Producer {
 
     private String consumerIp;
     private int consumerPort;
+    private int numProducers;
 
-    public void startClientForTesting() {
+    public void startClientForTesting(int numberOfThreads) {
         discoverConsumer();
+
         if (consumerIp != null) {
-            connectToConsumer();
+            for (int i = 0; i < numberOfThreads; i++) {
+                ProducerThread producerThread = new ProducerThread(consumerIp, consumerPort, i);
+                producerThread.start();
+            }
         } else {
             System.err.println("Consumer not discovered.");
         }
@@ -23,7 +33,7 @@ public class Producer {
 
     private void discoverConsumer() {
         try (MulticastSocket socket = new MulticastSocket(DISCOVERY_PORT)) {
-            socket.setSoTimeout(10000); // Wait max 10s for discovery
+            socket.setSoTimeout(10000);
             InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
             socket.joinGroup(group);
 
@@ -37,8 +47,6 @@ public class Producer {
             System.out.println("Received multicast: " + message);
 
             consumerIp = packet.getAddress().getHostAddress();
-
-            // Extract port from message (assumes format: "Consumer is listening on port XXXX")
             String[] parts = message.split(" ");
             consumerPort = Integer.parseInt(parts[parts.length - 1]);
 
@@ -50,21 +58,5 @@ public class Producer {
             e.printStackTrace();
         }
     }
-
-    private void connectToConsumer() {
-        try (Socket socket = new Socket(consumerIp, consumerPort)) {
-            System.out.println("Connected to Consumer at " + consumerIp + ":" + consumerPort);
-
-            // Optional: send sample message
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-            out.println("Hello from Producer!");
-            String response = in.readLine();
-            System.out.println("Consumer replied: " + response);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }
+

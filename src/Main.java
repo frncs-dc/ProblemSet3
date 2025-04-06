@@ -26,11 +26,11 @@ public class Main {
                 // Check if the input matches the target string
                 if (userInput.toUpperCase().equals(consumerSTRING)) {
                     Consumer consumer = new Consumer();
-                    consumer.startServerForTesting();
+                    consumer.start();
                     break;  // Exit the loop when the input is correct
                 } else if (userInput.toUpperCase().equals(producerSTRING)) {
                     Producer producer = new Producer();
-                    producer.startClientForTesting();
+                    producer.startClientForTesting(3);
                     break;  // Exit the loop when the input is correct
                 } else {
                     System.out.println("The input is not equal to the target string. Please try again.");
