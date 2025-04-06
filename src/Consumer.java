@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.*;
 
 public class Consumer {
@@ -10,6 +7,8 @@ public class Consumer {
     private static final int TCP_PORT = 5000;
 
     private volatile boolean connected = false;
+
+    private final File videoFolder = new File("Consumer/Videos");
 
     // Call this from your app logic to start everything
     public void startServerForTesting() {
@@ -67,5 +66,12 @@ public class Consumer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public File[] getVideoFiles() {
+        if (!videoFolder.exists()) {
+            videoFolder.mkdirs(); // create folder if it doesn't exist
+        }
+        return videoFolder.listFiles((dir, name) -> name.endsWith(".mp4"));
     }
 }

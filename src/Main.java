@@ -26,7 +26,9 @@ public class Main {
                 // Check if the input matches the target string
                 if (userInput.toUpperCase().equals(consumerSTRING)) {
                     Consumer consumer = new Consumer();
-                    consumer.startServerForTesting();
+                    //consumer.startServerForTesting();
+                    new Thread(() -> consumer.startServerForTesting()).start();
+                    ConsumerGUI.launch(ConsumerGUI.class);
                     break;  // Exit the loop when the input is correct
                 } else if (userInput.toUpperCase().equals(producerSTRING)) {
                     Producer producer = new Producer();
