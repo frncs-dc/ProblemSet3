@@ -32,7 +32,7 @@ public class Main {
                     break;  // Exit the loop when the input is correct
                 } else if (userInput.toUpperCase().equals(producerSTRING)) {
                     Producer producer = new Producer();
-                    producer.startClientForTesting();
+                    producer.startClientForTesting(3);
                     break;  // Exit the loop when the input is correct
                 } else {
                     System.out.println("The input is not equal to the target string. Please try again.");
