@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 public class Producer {
     private static final String MULTICAST_GROUP = "230.0.0.0";
     private static final int DISCOVERY_PORT = 4446;
+    private static final int TCP_PORT = 5000;
     private static final String PRODUCER_DIRECTORY = "producer_directory";
 
     private String consumerIp;
@@ -36,9 +37,32 @@ public class Producer {
     }
 
     private void discoverConsumer() {
+        try (DatagramSocket socket = new DatagramSocket(DISCOVERY_PORT)) {
+            socket.setBroadcast(true);
+            byte[] buffer = new byte[256];
+            DatagramPacket packet = new DatagramPacket(buffer,buffer.length);
+
+            System.out.println("Listening for broadcast...");
+            socket.receive(packet);
+
+            String message = new String(packet.getData(), 0, packet.getLength());
+            consumerIp = packet.getAddress().getHostAddress();
+            consumerPort = TCP_PORT;
+
+            System.out.println("Found Consumer: " + consumerIp + ":" + consumerPort);
+        } catch (IOException e) {
+            System.out.println("Fallback: Using hardcoded IP (192.168.56.102)");
+            consumerIp = "192.168.56.102";
+            consumerPort = TCP_PORT;
+        }
+    }
+
+    /*
+    private void discoverConsumer() {
         try (MulticastSocket socket = new MulticastSocket(DISCOVERY_PORT)) {
             socket.setSoTimeout(10000);
             InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
+            System.setProperty("java.net.preferIPv4Stack", "true");
             socket.joinGroup(group);
 
             System.out.println("Waiting for consumer broadcast...");
@@ -50,7 +74,12 @@ public class Producer {
             String message = new String(packet.getData(), 0, packet.getLength());
             System.out.println("Received multicast: " + message);
 
+            // consumerIp = packet.getAddress().getHostAddress();
             consumerIp = packet.getAddress().getHostAddress();
+            if (consumerIp.contains("%")) {
+                consumerIp = consumerIp.substring(0, consumerIp.indexOf('%'));
+            }
+
             String[] parts = message.split(" ");
             consumerPort = Integer.parseInt(parts[parts.length - 1]);
 
@@ -62,6 +91,7 @@ public class Producer {
             e.printStackTrace();
         }
     }
+     */
 
     private void preloadFiles(Path dir, BlockingQueue<Path> queue) throws IOException {
         try (Stream<Path> files = Files.list(dir)) {

@@ -28,6 +28,7 @@ public class Consumer {
     }
 
     public void start() {
+        System.setProperty("java.net.preferIPv4Stack", "true");
         new Thread(this::broadcastContinuously).start();
         new Thread(this::startServer).start();
 
@@ -42,7 +43,26 @@ public class Consumer {
         startQueueLogger();
     }
 
+    private void broadcastContinuously() {
+        try (DatagramSocket socket = new DatagramSocket()) {
+            socket.setBroadcast(true);
+            InetAddress broadcastAddress = InetAddress.getByName("255.255.255.255");
+            while (true) {
+                String message = "Consumer is listening on port " + TCP_PORT;
+                byte[] buffer = message.getBytes();
+                DatagramPacket packet = new DatagramPacket(
+                  buffer, buffer.length, broadcastAddress, DISCOVERY_PORT
+                );
+                socket.send(packet);
+                System.out.println("Broadcasted: " + message);
+                Thread.sleep(2000);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
+    /*
     private void broadcastContinuously() {
         try {
             InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
@@ -60,6 +80,7 @@ public class Consumer {
             e.printStackTrace();
         }
     }
+     */
 
     private void startServer() {
         try (ServerSocket serverSocket = new ServerSocket(TCP_PORT)) {
@@ -74,7 +95,12 @@ public class Consumer {
     }
 
     private void handleProducer(Socket socket) {
-        try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
+        try (DataInputStream in = new DataInputStream(socket.getInputStream());
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
+
+            out.writeUTF("CONSUMER_OK");
+            out.flush();
+
             while (true) {
                 String fileName = in.readUTF();
                 int length = in.readInt();

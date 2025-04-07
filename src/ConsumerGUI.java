@@ -23,23 +23,23 @@ public class ConsumerGUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         // For testing: use hardcoded folder first
-        File testVideosDir = new File("Videos/TestPSET3");
+        // File testVideosDir = new File("Videos/TestPSET3");
 
         // For actual execution: use consumer_directory folder
-        // File videoDir = new File("consumer_directory");
+        File videoDir = new File("consumer_directory");
 
         // Repeating task every 5 seconds
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> refreshVideoList(testVideosDir)));
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> refreshVideoList(videoDir)));
         timeline.setCycleCount(Timeline.INDEFINITE);
         timeline.play();
 
         // For testing initial call
-        refreshVideoList(testVideosDir);
+        // refreshVideoList(testVideosDir);
 
         // For actual execution: use videoDir
-        // refreshVideoList(videoDir)
+        refreshVideoList(videoDir);
 
-        Scene scene = new Scene(root, 1000, 800);
+        Scene scene = new Scene(root, 800, 600);
         primaryStage.setTitle("Consumer - Video Library");
         primaryStage.setScene(scene);
         primaryStage.show();
