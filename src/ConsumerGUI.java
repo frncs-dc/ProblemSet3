@@ -153,7 +153,8 @@ public class ConsumerGUI extends Application {
 
                         mediaView.setOnMouseClicked(e -> {
                             Stage videoStage = new Stage();
-                            MediaPlayer fullPlayer = new MediaPlayer(media);
+                            // MediaPlayer fullPlayer = new MediaPlayer(media);
+                            MediaPlayer fullPlayer = new MediaPlayer(new Media(videoFile.toURI().toString()));
                             MediaView fullView = new MediaView(fullPlayer);
                             fullView.setFitWidth(800);
                             fullView.setPreserveRatio(true);
