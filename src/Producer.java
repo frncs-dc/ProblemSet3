@@ -57,42 +57,6 @@ public class Producer {
         }
     }
 
-    /*
-    private void discoverConsumer() {
-        try (MulticastSocket socket = new MulticastSocket(DISCOVERY_PORT)) {
-            socket.setSoTimeout(10000);
-            InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
-            System.setProperty("java.net.preferIPv4Stack", "true");
-            socket.joinGroup(group);
-
-            System.out.println("Waiting for consumer broadcast...");
-
-            byte[] buffer = new byte[256];
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            socket.receive(packet);
-
-            String message = new String(packet.getData(), 0, packet.getLength());
-            System.out.println("Received multicast: " + message);
-
-            // consumerIp = packet.getAddress().getHostAddress();
-            consumerIp = packet.getAddress().getHostAddress();
-            if (consumerIp.contains("%")) {
-                consumerIp = consumerIp.substring(0, consumerIp.indexOf('%'));
-            }
-
-            String[] parts = message.split(" ");
-            consumerPort = Integer.parseInt(parts[parts.length - 1]);
-
-            socket.leaveGroup(group);
-
-        } catch (SocketTimeoutException e) {
-            System.out.println("Timed out waiting for consumer.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-     */
-
     private void preloadFiles(Path dir, BlockingQueue<Path> queue) throws IOException {
         try (Stream<Path> files = Files.list(dir)) {
             files.filter(path -> Files.isRegularFile(path) && isVideoFile(path))
