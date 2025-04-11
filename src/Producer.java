@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.*;
 import java.nio.file.*;
 import java.util.concurrent.BlockingQueue;
@@ -23,6 +24,7 @@ public class Producer {
 
             try {
                 preloadFiles(Paths.get(PRODUCER_DIRECTORY), videoQueue);
+                watchDirectory(Paths.get(PRODUCER_DIRECTORY));  // Start watching for new files
             } catch (IOException e) {
                 System.err.println("Error preloading files: " + e.getMessage());
                 return;
@@ -56,6 +58,80 @@ public class Producer {
             consumerPort = TCP_PORT;
         }
     }
+
+    private void watchDirectory(Path dir) throws IOException {
+        WatchService watchService = FileSystems.getDefault().newWatchService();
+        dir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
+
+        Thread watcherThread = new Thread(() -> {
+            System.out.println("Watching for new files in: " + dir);
+            while (true) {
+                try {
+                    WatchKey key = watchService.take(); // blocking
+                    for (WatchEvent<?> event : key.pollEvents()) {
+                        WatchEvent.Kind<?> kind = event.kind();
+                        if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+                            Path createdPath = dir.resolve((Path) event.context());
+                            if (Files.isRegularFile(createdPath)) {
+                                System.out.println("New video file detected: " + createdPath.getFileName());
+                                if (isVideoFile(createdPath)) {
+                                    waitForFileToBeReady(createdPath);
+                                    videoQueue.offer(createdPath);
+                                    System.out.println("New video file detected and queued: " + createdPath.getFileName());
+                                }
+                            }
+                        }
+                    }
+                    key.reset();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+        watcherThread.setDaemon(true); // Optional: ends with main thread
+        watcherThread.start();
+    }
+
+    private void waitForFileToBeReady(Path path) {
+        long previousSize = -1;
+        int stableCount = 0;
+
+        while (true) {
+            try {
+                long currentSize = Files.size(path);
+
+                if (currentSize == previousSize) {
+                    stableCount++;
+                } else {
+                    stableCount = 0;
+                    previousSize = currentSize;
+                }
+
+                // After being stable for 3 checks, try to read entire file
+                if (stableCount >= 3) {
+                    try (InputStream in = Files.newInputStream(path)) {
+                        byte[] buffer = new byte[8192];
+                        while (in.read(buffer) != -1) {
+                            // Read all content to ensure file is fully unlocked
+                        }
+                    }
+                    break; // Successfully read whole file = it's ready
+                }
+
+                Thread.sleep(1000); // 1s delay between checks (more stable for large files)
+            } catch (IOException | InterruptedException e) {
+                // Reset and retry
+                stableCount = 0;
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {}
+            }
+        }
+    }
+
+
+
 
     private void preloadFiles(Path dir, BlockingQueue<Path> queue) throws IOException {
         try (Stream<Path> files = Files.list(dir)) {
