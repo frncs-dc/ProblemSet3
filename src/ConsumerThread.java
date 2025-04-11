@@ -9,6 +9,7 @@ public class ConsumerThread implements Runnable {
     private final BlockingQueue<Consumer.VideoFile> queue;
     private final String saveDirectory;
     private volatile String currentFileName = "Idle";
+    private final VideoDuplicateChecker duplicateChecker = new VideoDuplicateChecker();
 
 
     public ConsumerThread(int id, BlockingQueue<Consumer.VideoFile> queue, String saveDirectory) {
@@ -23,8 +24,17 @@ public class ConsumerThread implements Runnable {
             try {
                 Consumer.VideoFile videoFile = queue.take();  // Blocks if empty
                 currentFileName = videoFile.fileName;
-                System.out.println("ConsumerThread-" + id + " processing: " + videoFile.fileName);
-                saveFile(videoFile);
+                // Check for duplicate
+                VideoDuplicateChecker.VideoFile checkerFile =
+                        new VideoDuplicateChecker.VideoFile(videoFile.fileName, videoFile.content);
+
+                if (duplicateChecker.isDuplicate(checkerFile)) {
+                    System.out.println("ConsumerThread-" + id + " skipped duplicate: " + videoFile.fileName);
+                } else {
+                    saveFile(videoFile);
+                    System.out.println("ConsumerThread-" + id + " saved: " + videoFile.fileName);
+                }
+
                 currentFileName = "Idle";
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
