@@ -15,6 +15,7 @@ public class Consumer {
     private final BlockingQueue<VideoFile> videoQueue;
     private final ExecutorService videoProcessingPool;
     private List<ConsumerThread> consumerThreads;
+    private VideoDuplicateChecker videoDuplicateChecker = new VideoDuplicateChecker(CONSUMER_DIRECTORY);
 
     public Consumer(int numConsumerThreads, int maxQueueLength) {
         File saveDir = new File(CONSUMER_DIRECTORY);
@@ -35,7 +36,7 @@ public class Consumer {
         // Create consumer threads and keep references for logging
         consumerThreads = new ArrayList<>();
         for (int i = 0; i < ((ThreadPoolExecutor) videoProcessingPool).getCorePoolSize(); i++) {
-            ConsumerThread thread = new ConsumerThread(i, videoQueue, CONSUMER_DIRECTORY);
+            ConsumerThread thread = new ConsumerThread(i, videoQueue, CONSUMER_DIRECTORY, videoDuplicateChecker);
             consumerThreads.add(thread);
             videoProcessingPool.submit(thread);
         }
@@ -61,26 +62,6 @@ public class Consumer {
             e.printStackTrace();
         }
     }
-
-    /*
-    private void broadcastContinuously() {
-        try {
-            InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
-            try (MulticastSocket socket = new MulticastSocket()) {
-                socket.setTimeToLive(1);
-                while (true) {
-                    String message = "Consumer is listening on port " + TCP_PORT;
-                    DatagramPacket packet = new DatagramPacket(message.getBytes(), message.length(), group, DISCOVERY_PORT);
-                    socket.send(packet);
-                    System.out.println("Broadcasting: " + message);
-                    Thread.sleep(2000);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-     */
 
     private void startServer() {
         try (ServerSocket serverSocket = new ServerSocket(TCP_PORT)) {

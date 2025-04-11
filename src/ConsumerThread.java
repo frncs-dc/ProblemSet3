@@ -9,27 +9,25 @@ public class ConsumerThread implements Runnable {
     private final BlockingQueue<Consumer.VideoFile> queue;
     private final String saveDirectory;
     private volatile String currentFileName = "Idle";
-    private final VideoDuplicateChecker duplicateChecker = new VideoDuplicateChecker();
+    private final VideoDuplicateChecker duplicateChecker;
 
-
-    public ConsumerThread(int id, BlockingQueue<Consumer.VideoFile> queue, String saveDirectory) {
+    public ConsumerThread(int id, BlockingQueue<Consumer.VideoFile> queue, String saveDirectory,
+                          VideoDuplicateChecker checker) {
         this.id = id;
         this.queue = queue;
         this.saveDirectory = saveDirectory;
+        this.duplicateChecker = checker;
     }
 
     @Override
     public void run() {
         while (true) {
             try {
-                Consumer.VideoFile videoFile = queue.take();  // Blocks if empty
+                Consumer.VideoFile videoFile = queue.take();
                 currentFileName = videoFile.fileName;
-                // Check for duplicate
-                VideoDuplicateChecker.VideoFile checkerFile =
-                        new VideoDuplicateChecker.VideoFile(videoFile.fileName, videoFile.content);
 
-                if (duplicateChecker.isDuplicate(checkerFile)) {
-                    System.out.println("ConsumerThread-" + id + " skipped duplicate: " + videoFile.fileName);
+                if (duplicateChecker.isDuplicate(videoFile.content)) {
+                    System.out.println("Duplicate skipped: " + videoFile.fileName);
                 } else {
                     saveFile(videoFile);
                     System.out.println("ConsumerThread-" + id + " saved: " + videoFile.fileName);
@@ -39,6 +37,8 @@ public class ConsumerThread implements Runnable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (IOException e) {
+                System.err.println("Error checking/saving file: " + e.getMessage());
             }
         }
     }

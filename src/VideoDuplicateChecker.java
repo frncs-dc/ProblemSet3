@@ -1,46 +1,71 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.security.MessageDigest;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
 
 public class VideoDuplicateChecker {
+    private final Set<String> seenHashes = Collections.synchronizedSet(new HashSet<>());
+    private final File saveDir;
 
-    private final HashSet<String> knownHashes = new HashSet<>();
+    public VideoDuplicateChecker(String saveDirectoryPath) {
+        this.saveDir = new File(saveDirectoryPath);
+    }
 
-    // Add a video file and return true if it's a duplicate
-    public boolean isDuplicate(VideoFile videoFile) {
-        try {
-            String hash = computeSHA256(videoFile.content);
-            if (knownHashes.contains(hash)) {
-                return true;  // Duplicate
-            } else {
-                knownHashes.add(hash);
-                return false; // New video
+    public boolean isDuplicate(byte[] content) throws IOException {
+        String hash = computeHash(content);
+
+        // Check memory (already seen hashes)
+        if (seenHashes.contains(hash)) {
+            return true;
+        }
+
+        // Check on-disk files
+        if (checkDiskForDuplicate(hash)) {
+            return true;
+        }
+
+        // Not found: mark this hash as seen
+        seenHashes.add(hash);
+        return false;
+    }
+
+    private boolean checkDiskForDuplicate(String incomingHash) throws IOException {
+        File[] files = saveDir.listFiles();
+        if (files == null) return false;
+
+        for (File file : files) {
+            if (!file.isFile()) continue;
+            String fileHash = computeHash(readFileToBytes(file));
+            if (fileHash.equals(incomingHash)) {
+                return true;
             }
+        }
+
+        return false;
+    }
+
+    private byte[] readFileToBytes(File file) throws IOException {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            return fis.readAllBytes();
+        }
+    }
+
+    private String computeHash(byte[] data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(data);
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+
+            return sb.toString();
         } catch (Exception e) {
-            e.printStackTrace();
-            return false; // Treat as non-duplicate if hashing fails
-        }
-    }
-
-    // Compute SHA-256 hash from byte array
-    private String computeSHA256(byte[] data) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hashBytes = digest.digest(data);
-
-        StringBuilder sb = new StringBuilder();
-        for (byte b : hashBytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-
-    // Inner class for video data
-    public static class VideoFile {
-        public final String fileName;
-        public final byte[] content;
-
-        public VideoFile(String fileName, byte[] content) {
-            this.fileName = fileName;
-            this.content = content;
+            throw new RuntimeException("Failed to compute hash", e);
         }
     }
 }
