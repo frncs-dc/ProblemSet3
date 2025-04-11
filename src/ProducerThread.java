@@ -42,8 +42,6 @@ public class ProducerThread extends Thread {
                     } catch (IOException e) {
                         System.err.println("Error sending file: " + e.getMessage());
                     }
-
-                    Thread.sleep(1000);
                 }
             } catch (Exception e) {
                 System.out.println("ProducerThread-" + id + " lost connection. Retrying...");
